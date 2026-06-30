@@ -34,7 +34,7 @@ final List<Product> products = [
     description: 'Luxurious deep velvet sofa with gold-tipped legs',
     fullDescription:
     'The Velvet Empress Sofa redefines luxury living. Crafted with hand-stitched deep emerald velvet and supported by solid brass-tipped walnut legs, this piece is a statement of refined taste.',
-    price: 4299.00,
+    price: 320.00,
     imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800',
     imageUrls: [
       'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800',
@@ -53,7 +53,7 @@ final List<Product> products = [
     description: 'Italian Carrara marble top with sculptural base',
     fullDescription:
     'Sourced from the quarries of Carrara, Italy, this dining table features a book-matched marble top with dramatic veining. The sculptural arched base in powder-coated steel creates a perfect tension between raw material and refined form.',
-    price: 6850.00,
+    price: 650.00,
     imageUrl: 'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800',
     imageUrls: [
       'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800',
@@ -72,7 +72,7 @@ final List<Product> products = [
     description: 'Minimalist platform bed with integrated lighting',
     fullDescription:
     'The Floating Walnut Bed creates an illusion of weightlessness with its cantilevered design. Integrated LED strip lighting beneath the platform casts a warm ambient glow, transforming your bedroom into a serene retreat.',
-    price: 3150.00,
+    price: 480.00,
     imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800',
     imageUrls: [
       'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800',
@@ -91,7 +91,7 @@ final List<Product> products = [
     description: 'Hand-carved black onyx with brushed brass fittings',
     fullDescription:
     'Each piece of black onyx is individually hand-carved and translucent when illuminated, revealing unique patterns within the stone. Set in brushed brass arms, this chandelier transforms any room into an extraordinary experience.',
-    price: 5200.00,
+    price: 150.00,
     imageUrl: 'https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=800',
     imageUrls: [
       'https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=800',
@@ -110,7 +110,7 @@ final List<Product> products = [
     description: 'Cloud-like boucle fabric on sculptural oak frame',
     fullDescription:
     'Sink into the cloud-like embrace of our Boucle Accent Chair. The ivory boucle fabric wraps a generously padded seat and back, while the organic sculptural frame in oiled oak adds warmth and character to any corner.',
-    price: 1890.00,
+    price: 200.00,
     imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=800',
     imageUrls: [
       'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=800',
@@ -129,7 +129,7 @@ final List<Product> products = [
     description: 'Natural travertine stone with geometric cutouts',
     fullDescription:
     'Hewn from a single block of Roman travertine, this side table celebrates the natural beauty of stone. Geometric cutouts reduce visual weight while revealing the layered texture within.',
-    price: 1250.00,
+    price: 130.00,
     imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',
     imageUrls: [
       'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',

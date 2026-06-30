@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'product_model.dart';
 import 'cart_model.dart';
 import 'cart_page.dart';
+import 'auth_model.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Product product;
@@ -60,29 +62,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   // ── Actions ────────────────────────────────────────────────────────────────
   void _addToCart() {
     _cart.addItem(widget.product, quantity: quantity, size: selectedSize);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(children: [
-          const Icon(Icons.check_circle, color: Colors.white, size: 18),
-          const SizedBox(width: 10),
-          Expanded(child: Text('${widget.product.name} added to cart!')),
-        ]),
-        backgroundColor: const Color(0xFF2C2416),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        action: SnackBarAction(
-          label: 'View Cart',
-          textColor: const Color(0xFFD4AF37),
-          onPressed: () => Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const CartPage())),
-        ),
-      ),
+    AuthManager.instance.autoSaveIfLoggedIn();
+    _CartToast.show(
+      context,
+      message: '${widget.product.name} added to cart!',
+      onViewCart: () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const CartPage())),
     );
     setState(() {});
   }
 
   void _buyNow() {
     _cart.addItem(widget.product, quantity: quantity, size: selectedSize);
+    AuthManager.instance.autoSaveIfLoggedIn();
     Navigator.push(
         context, MaterialPageRoute(builder: (_) => const CartPage()));
   }
@@ -677,6 +669,178 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
         ),
       ]),
+    );
+  }
+}
+
+// =============================================================================
+// Self-managed "Added to cart" toast.
+//
+// Bypasses ScaffoldMessenger entirely — inserted directly into the root
+// Overlay and removed by its OWN Timer, so it can never get stuck if the
+// hosting Scaffold/page changes, navigates, or rebuilds while it's showing.
+// Guaranteed to auto-dismiss after [duration], with a fade in/out.
+// =============================================================================
+class _CartToast {
+  static OverlayEntry? _current;
+  static Timer? _timer;
+
+  static void show(
+      BuildContext context, {
+        required String message,
+        required VoidCallback onViewCart,
+        Duration duration = const Duration(seconds: 5),
+      }) {
+    // Remove any toast already showing, and cancel its pending timer,
+    // so toasts never stack or fight over dismissal.
+    _dismiss();
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _CartToastWidget(
+        message: message,
+        duration: duration,
+        onViewCart: () {
+          _dismiss();
+          onViewCart();
+        },
+        onExpired: _dismiss,
+      ),
+    );
+
+    _current = entry;
+    overlay.insert(entry);
+
+    // Hard backstop: even if the widget's own animation/callback somehow
+    // fails to fire, this guarantees removal.
+    _timer = Timer(duration + const Duration(milliseconds: 400), _dismiss);
+  }
+
+  static void _dismiss() {
+    _timer?.cancel();
+    _timer = null;
+    _current?.remove();
+    _current = null;
+  }
+}
+
+class _CartToastWidget extends StatefulWidget {
+  final String message;
+  final Duration duration;
+  final VoidCallback onViewCart;
+  final VoidCallback onExpired;
+
+  const _CartToastWidget({
+    required this.message,
+    required this.duration,
+    required this.onViewCart,
+    required this.onExpired,
+  });
+
+  @override
+  State<_CartToastWidget> createState() => _CartToastWidgetState();
+}
+
+class _CartToastWidgetState extends State<_CartToastWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+  Timer? _dismissTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+
+    _ctrl.forward();
+
+    // Start fading out shortly before `duration` elapses, then expire.
+    _dismissTimer = Timer(widget.duration, _fadeOutAndExpire);
+  }
+
+  void _fadeOutAndExpire() async {
+    if (!mounted) return;
+    await _ctrl.reverse();
+    if (!mounted) return;
+    widget.onExpired();
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: bottomInset + 16,
+      child: SafeArea(
+        top: false,
+        child: FadeTransition(
+          opacity: _fade,
+          child: SlideTransition(
+            position: _slide,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C2416),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle,
+                        color: Colors.white, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        widget.message,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 13.5),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: widget.onViewCart,
+                      child: const Text(
+                        'View Cart',
+                        style: TextStyle(
+                          color: Color(0xFFD4AF37),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

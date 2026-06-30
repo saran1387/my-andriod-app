@@ -5,6 +5,8 @@ import 'cart_page.dart';
 import 'cart_model.dart';
 import 'favourites_model.dart';
 import 'auth_model.dart';
+import 'static_pages.dart';
+import 'chatbot_widget.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -110,7 +112,10 @@ class _HomePageState extends State<HomePage> {
           Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: p)))
               .then((_) => _refreshCartBadge());
         },
-        onToggleFav: (p) => setState(() => _favs.toggle(p.id)),
+        onToggleFav: (p) => setState(() {
+          _favs.toggle(p.id);
+          AuthManager.instance.autoSaveIfLoggedIn();
+        }),
       ),
     );
   }
@@ -143,10 +148,10 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ProfileSheet(
         onUpdate: () => setState(() {}),
-        onLogout: () {
+        onLogout: () async {
           Navigator.pop(context);
-          AuthManager.instance.logout();
-          setState(() {});
+          await AuthManager.instance.logout();
+          if (mounted) setState(() {});
         },
       ),
     );
@@ -157,18 +162,28 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      body: CustomScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        slivers: [
-          _buildAppBar(),
-          if (_searchActive) SliverToBoxAdapter(child: _buildSearchBar()),
-          SliverToBoxAdapter(child: RepaintBoundary(child: _buildHeroBanner())),
-          SliverToBoxAdapter(child: RepaintBoundary(child: _buildServicesRow())),
-          SliverToBoxAdapter(child: _buildCategoryFilter()),
-          SliverToBoxAdapter(key: _productsKey, child: _buildProductsHeader()),
-          _buildProductGrid(),
-          SliverToBoxAdapter(child: RepaintBoundary(child: _buildFooter())),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            slivers: [
+              _buildAppBar(),
+              if (_searchActive) SliverToBoxAdapter(child: _buildSearchBar()),
+              SliverToBoxAdapter(child: RepaintBoundary(child: _buildHeroBanner())),
+              SliverToBoxAdapter(child: RepaintBoundary(child: _buildServicesRow())),
+              SliverToBoxAdapter(child: _buildCategoryFilter()),
+              SliverToBoxAdapter(key: _productsKey, child: _buildProductsHeader()),
+              _buildProductGrid(),
+              SliverToBoxAdapter(child: RepaintBoundary(child: _buildFooter())),
+            ],
+          ),
+          // Floating customer support chatbot launcher
+          const Positioned(
+            right: 16,
+            bottom: 24,
+            child: ChatbotLauncher(),
+          ),
         ],
       ),
     );
@@ -355,7 +370,7 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                         color: const Color(0xFF8B6914), borderRadius: BorderRadius.circular(20)),
-                    child: const Text('NEW COLLECTION 2025',
+                    child: const Text('NEW COLLECTION 2026',
                         style: TextStyle(color: Colors.white, fontSize: 11, letterSpacing: 2)),
                   ),
                   const SizedBox(height: 12),
@@ -488,7 +503,10 @@ class _HomePageState extends State<HomePage> {
                   _showAuthSheet();
                   return;
                 }
-                setState(() => _favs.toggle(displayList[index].id));
+                setState(() {
+                  _favs.toggle(displayList[index].id);
+                  AuthManager.instance.autoSaveIfLoggedIn();
+                });
               },
             ),
           ),
@@ -622,12 +640,17 @@ class _AuthSheetState extends State<_AuthSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  bool _loading = false;
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
     final auth = AuthManager.instance;
     final err = _isSignup
-        ? auth.signup(_nameCtrl.text.trim(), _emailCtrl.text.trim(), _passCtrl.text)
-        : auth.login(_emailCtrl.text.trim(), _passCtrl.text);
+        ? await auth.signup(_nameCtrl.text.trim(), _emailCtrl.text.trim(), _passCtrl.text)
+        : await auth.login(_emailCtrl.text.trim(), _passCtrl.text);
+    if (!mounted) return;
+    setState(() => _loading = false);
     if (err != null) {
       setState(() => _error = err);
     } else {
@@ -684,7 +707,7 @@ class _AuthSheetState extends State<_AuthSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _submit,
+                  onPressed: _loading ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8B6914),
                     foregroundColor: Colors.white,
@@ -692,7 +715,13 @@ class _AuthSheetState extends State<_AuthSheet> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
-                  child: Text(_isSignup ? 'Create Account' : 'Sign In',
+                  child: _loading
+                      ? const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                      : Text(_isSignup ? 'Create Account' : 'Sign In',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
               ),
@@ -1154,6 +1183,11 @@ class _ProductCard extends StatelessWidget {
 
 class _Footer extends StatelessWidget {
   const _Footer();
+
+  void _navigateTo(BuildContext context, Widget page) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1167,20 +1201,67 @@ class _Footer extends StatelessWidget {
         const SizedBox(height: 8),
         const Text('Curating exceptional interiors since 2010',
             style: TextStyle(color: Colors.white54, fontSize: 12)),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
+        // Location details
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: ['About', 'Services', 'Portfolio', 'Contact']
-              .map((item) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(item, style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
-          ))
-              .toList(),
+          children: [
+            const Icon(Icons.location_on_outlined, color: Color(0xFFD4AF37), size: 14),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '245 Madison Avenue, New York, NY 10016, USA',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white60, fontSize: 11.5, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.phone_outlined, color: Color(0xFFD4AF37), size: 13),
+            SizedBox(width: 6),
+            Text('+1 (800) 555-0199',
+                style: TextStyle(color: Colors.white60, fontSize: 11.5)),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Navigation links — now functional
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 0,
+          children: [
+            _FooterLink(label: 'About', onTap: () => _navigateTo(context, const AboutUsPage())),
+            _FooterLink(label: 'Services', onTap: () => _navigateTo(context, const ServicesPage())),
+            _FooterLink(label: 'Portfolio', onTap: () => _navigateTo(context, const PortfolioPage())),
+            _FooterLink(label: 'Contact', onTap: () => _navigateTo(context, const ContactUsPage())),
+          ],
         ),
         const SizedBox(height: 16),
-        const Text('© 2025 Maison Elite. All rights reserved.',
+        const Text('© 2026 Maison Elite. All rights reserved.',
             style: TextStyle(color: Colors.white30, fontSize: 10)),
       ]),
+    );
+  }
+}
+
+class _FooterLink extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _FooterLink({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(label,
+            style: const TextStyle(
+                color: Color(0xFFD4AF37), fontSize: 12, fontWeight: FontWeight.w600)),
+      ),
     );
   }
 }

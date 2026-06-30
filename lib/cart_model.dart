@@ -12,6 +12,26 @@ class CartItem {
   });
 
   double get totalPrice => product.price * quantity;
+
+  Map<String, dynamic> toJson() => {
+    'productId': product.id,
+    'quantity': quantity,
+    'selectedSize': selectedSize,
+  };
+
+  static CartItem? fromJson(Map<String, dynamic> json) {
+    final product = products.where((p) => p.id == json['productId']).firstOrNull;
+    if (product == null) return null;
+    return CartItem(
+      product: product,
+      quantity: json['quantity'] ?? 1,
+      selectedSize: json['selectedSize'] ?? 'Queen',
+    );
+  }
+}
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }
 
 class CartManager {
@@ -61,5 +81,21 @@ class CartManager {
     }
   }
 
+  /// Wipes cart in-memory WITHOUT persisting (used on logout after saving).
   void clear() => _items.clear();
+
+  // ── Persistence helpers (used by AuthManager) ──────────────────────────────
+
+  /// Serializes current cart to a JSON-safe list.
+  List<Map<String, dynamic>> toJsonList() =>
+      _items.map((i) => i.toJson()).toList();
+
+  /// Replaces the entire cart with items restored from storage.
+  void restoreFromJsonList(List<dynamic> jsonList) {
+    _items.clear();
+    for (final entry in jsonList) {
+      final item = CartItem.fromJson(Map<String, dynamic>.from(entry));
+      if (item != null) _items.add(item);
+    }
+  }
 }

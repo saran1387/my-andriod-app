@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'cart_model.dart';
 import 'checkout_page.dart';
-import 'home_page.dart';
+import 'auth_model.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -36,6 +36,7 @@ class _CartPageState extends State<CartPage> {
           TextButton(
             onPressed: () {
               setState(() => _cart.clear());
+              AuthManager.instance.autoSaveIfLoggedIn();
             },
             child: const Text('Edit', style: TextStyle(color: Color(0xFF8B6914), fontWeight: FontWeight.w600)),
           ),
@@ -56,11 +57,9 @@ class _CartPageState extends State<CartPage> {
         const SizedBox(height: 30),
         ElevatedButton(
           onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const HomePage()),
-              (route) => false,
-            );
+            // Pops back to the first route in the stack (HomePage),
+            // avoiding a circular import with home_page.dart.
+            Navigator.popUntil(context, (route) => route.isFirst);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF2C2416),
@@ -178,6 +177,7 @@ class _CartPageState extends State<CartPage> {
             Row(children: [
               _smallQtyBtn(Icons.remove, () {
                 setState(() => _cart.updateQuantity(item.product.id, item.quantity - 1));
+                AuthManager.instance.autoSaveIfLoggedIn();
               }),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -185,13 +185,17 @@ class _CartPageState extends State<CartPage> {
               ),
               _smallQtyBtn(Icons.add, () {
                 setState(() => _cart.updateQuantity(item.product.id, item.quantity + 1));
+                AuthManager.instance.autoSaveIfLoggedIn();
               }),
             ]),
           ]),
         ),
         // Delete button
         GestureDetector(
-          onTap: () => setState(() => _cart.removeItem(item.product.id)),
+          onTap: () {
+            setState(() => _cart.removeItem(item.product.id));
+            AuthManager.instance.autoSaveIfLoggedIn();
+          },
           child: Container(
             padding: const EdgeInsets.all(8),
             child: const Icon(Icons.delete_outline, color: Color(0xFF9B8B75), size: 22),

@@ -1,4 +1,3 @@
-// favourites_model.dart ────────────────────────────────────────────────────
 import 'product_model.dart';
 
 class FavouritesManager {
@@ -24,4 +23,16 @@ class FavouritesManager {
       products.where((p) => _likedIds.contains(p.id)).toList();
 
   int get count => _likedIds.length;
+
+  /// Wipes favourites in-memory WITHOUT persisting (used on logout after saving).
+  void clear() => _likedIds.clear();
+
+  // ── Persistence helpers (used by AuthManager) ──────────────────────────────
+
+  List<String> toJsonList() => _likedIds.toList();
+
+  void restoreFromJsonList(List<dynamic> jsonList) {
+    _likedIds.clear();
+    _likedIds.addAll(jsonList.map((e) => e.toString()));
+  }
 }
